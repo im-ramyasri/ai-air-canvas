@@ -647,7 +647,8 @@ function onResults(results) {
   const handedness  = results.multiHandedness[0].label; // "Left"/"Right"
   const fingers     = getFingerStates(lm, handedness);
 
-  const rawX = Math.round(lm[8].x * CANVAS_W);
+  // Flip X to match the CSS mirrored video feed
+  const rawX = CANVAS_W - Math.round(lm[8].x * CANVAS_W);
   const rawY = Math.round(lm[8].y * CANVAS_H);
   const [sx, sy] = smooth(
     Math.max(0, Math.min(rawX, CANVAS_W-1)),
@@ -726,17 +727,22 @@ function drawHandSkeleton(lm) {
     [9,13],[13,14],[14,15],[15,16],
     [13,17],[17,18],[18,19],[19,20],[0,17]
   ];
+  // Flip x to match mirrored video
+  const px = p => [CANVAS_W - p.x * CANVAS_W, p.y * CANVAS_H];
   oCtx.strokeStyle = 'rgba(0,229,204,0.6)';
   oCtx.lineWidth = 2;
   connections.forEach(([a, b]) => {
+    const [ax, ay] = px(lm[a]);
+    const [bx, by] = px(lm[b]);
     oCtx.beginPath();
-    oCtx.moveTo(lm[a].x * CANVAS_W, lm[a].y * CANVAS_H);
-    oCtx.lineTo(lm[b].x * CANVAS_W, lm[b].y * CANVAS_H);
+    oCtx.moveTo(ax, ay);
+    oCtx.lineTo(bx, by);
     oCtx.stroke();
   });
   lm.forEach(p => {
+    const [x, y] = px(p);
     oCtx.beginPath();
-    oCtx.arc(p.x * CANVAS_W, p.y * CANVAS_H, 3, 0, Math.PI*2);
+    oCtx.arc(x, y, 3, 0, Math.PI*2);
     oCtx.fillStyle = 'white';
     oCtx.fill();
   });
