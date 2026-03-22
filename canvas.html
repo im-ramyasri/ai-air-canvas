@@ -370,7 +370,7 @@ canvas,video,img{transition:none!important;}
       <div class="shape-badge" id="shapeBadge">Circle ⭕</div>
 
       <!-- Gesture Guide -->
-      <div class="guide-panel" id="guidePanel">
+     <div class="guide-panel hidden" id="guidePanel">
         <div class="guide-title">
           Gestures
           <span class="guide-close" onclick="toggleGuide()">✕</span>
@@ -463,7 +463,7 @@ let currentStroke = [];
 let smoothX = null, smoothY = null;
 let gestureCandidate = null, gestureCandidateCount = 0, activeGesture = null;
 let shapeTimer = null;
-let guideVisible = true;
+let guideVisible = false;
 let isDark = true;
 
 // ── Canvas ────────────────────────────────────────────────────────────────
