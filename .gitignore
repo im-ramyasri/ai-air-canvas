@@ -1,0 +1,8 @@
+venv/
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+hand_landmarker.task
+canvas_*.png
+.env
