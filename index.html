@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AI Air Canvas — Draw With Your Hand</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #2a2a3a;
+    --accent: #7c6fff;
+    --accent2: #ff6b9d;
+    --accent3: #00e5cc;
+    --text: #f0f0f8;
+    --muted: #6b6b88;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    overflow-x: hidden;
+  }
+
+  /* ── Noise grain overlay ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.2rem 3rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(12px);
+  }
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+  }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  /* ── Hero ── */
+  .hero {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 8rem 2rem 4rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Radial glow blobs */
+  .hero::after {
+    content: '';
+    position: absolute;
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,111,255,0.12) 0%, transparent 70%);
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+  }
+  .blob {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    animation: float 8s ease-in-out infinite;
+  }
+  .blob-1 { width:400px; height:400px; background:rgba(124,111,255,0.08); top:-100px; left:-100px; }
+  .blob-2 { width:300px; height:300px; background:rgba(255,107,157,0.07); bottom:0; right:-50px; animation-delay:-3s; }
+  .blob-3 { width:250px; height:250px; background:rgba(0,229,204,0.06); top:40%; left:10%; animation-delay:-5s; }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.05); }
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 0.4rem 1rem;
+    border-radius: 100px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 2rem;
+    animation: fadeUp 0.6s ease both;
+  }
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--accent3);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50% { opacity:0.5; transform:scale(1.4); }
+  }
+
+  h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    line-height: 0.95;
+    letter-spacing: -0.04em;
+    margin-bottom: 1.5rem;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+  h1 .line2 { color: var(--accent); display: block; }
+
+  .hero-sub {
+    max-width: 500px;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.8;
+    margin-bottom: 3rem;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .cta-group {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    padding: 0.85rem 2rem;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 0 30px rgba(124,111,255,0.3);
+  }
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 50px rgba(124,111,255,0.5);
+  }
+
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    border: 1px solid var(--border);
+    color: var(--text);
+    text-decoration: none;
+    padding: 0.85rem 2rem;
+    border-radius: 8px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    transition: border-color 0.2s, background 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--accent); background: rgba(124,111,255,0.05); }
+
+  @keyframes fadeUp {
+    from { opacity:0; transform:translateY(20px); }
+    to   { opacity:1; transform:translateY(0); }
+  }
+
+  /* ── Demo Preview ── */
+  .demo-wrap {
+    margin-top: 5rem;
+    width: 100%;
+    max-width: 780px;
+    position: relative;
+    animation: fadeUp 0.8s 0.4s ease both;
+  }
+  .demo-frame {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(124,111,255,0.1);
+  }
+  .demo-bar {
+    background: #1a1a25;
+    padding: 0.8rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .dot { width:12px; height:12px; border-radius:50%; }
+  .dot-r { background:#ff5f57; }
+  .dot-y { background:#febc2e; }
+  .dot-g { background:#28c840; }
+  .demo-canvas {
+    width: 100%;
+    height: 340px;
+    background: #0d0d14;
+    position: relative;
+    overflow: hidden;
+  }
+  /* Animated drawing preview */
+  .demo-canvas svg { width:100%; height:100%; }
+
+  /* ── Features ── */
+  section { padding: 6rem 2rem; }
+  .section-label {
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 1rem;
+  }
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 4vw, 3rem);
+    letter-spacing: -0.03em;
+    margin-bottom: 1rem;
+  }
+  .section-sub { color: var(--muted); font-size: 0.88rem; line-height: 1.8; max-width: 500px; }
+
+  .features-grid {
+    max-width: 1100px;
+    margin: 4rem auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+  .feature-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem;
+    transition: border-color 0.3s, transform 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .feature-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(124,111,255,0.04) 0%, transparent 60%);
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .feature-card:hover { border-color: var(--accent); transform: translateY(-4px); }
+  .feature-card:hover::before { opacity: 1; }
+  .feature-icon {
+    font-size: 2rem;
+    margin-bottom: 1.2rem;
+    display: block;
+  }
+  .feature-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 0.6rem;
+  }
+  .feature-desc { color: var(--muted); font-size: 0.82rem; line-height: 1.7; }
+
+  /* ── Gestures ── */
+  .gestures-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .gestures-inner {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .gesture-list { margin-top: 3rem; display: flex; flex-direction: column; gap: 0; }
+  .gesture-row {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 1.4rem 0;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .gesture-row:last-child { border-bottom: none; }
+  .gesture-emoji { font-size: 2rem; width: 3rem; text-align: center; flex-shrink: 0; }
+  .gesture-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    width: 180px;
+    flex-shrink: 0;
+  }
+  .gesture-desc { color: var(--muted); font-size: 0.82rem; line-height: 1.6; }
+  .gesture-tag {
+    margin-left: auto;
+    flex-shrink: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.25rem 0.7rem;
+    border-radius: 100px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  /* ── Stack ── */
+  .stack-grid {
+    max-width: 900px;
+    margin: 3rem auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+  .stack-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.5rem;
+    background: var(--surface);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .stack-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+  }
+  .stack-role { font-size: 0.78rem; color: var(--muted); }
+  .stack-pill {
+    margin-top: 0.5rem;
+    align-self: flex-start;
+    font-size: 0.68rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 100px;
+    background: rgba(124,111,255,0.12);
+    color: var(--accent);
+    letter-spacing: 0.05em;
+  }
+
+  /* ── CTA Banner ── */
+  .cta-section {
+    text-align: center;
+    padding: 6rem 2rem;
+    position: relative;
+    overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute;
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(124,111,255,0.1) 0%, transparent 70%);
+    top:50%; left:50%; transform:translate(-50%,-50%);
+    pointer-events: none;
+  }
+  .cta-section h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 4rem);
+    letter-spacing: -0.04em;
+    margin-bottom: 1rem;
+  }
+  .cta-section p { color: var(--muted); font-size: 0.9rem; margin-bottom: 2.5rem; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 3rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+  }
+  footer a { color: var(--muted); text-decoration: none; }
+  footer a:hover { color: var(--text); }
+
+  .text-center { text-align: center; }
+  .container { max-width: 1100px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-logo">AI <span>Air</span> Canvas</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#gestures">Gestures</a>
+    <a href="#stack">Stack</a>
+    <a href="canvas.html">Try It</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="blob blob-1"></div>
+  <div class="blob blob-2"></div>
+  <div class="blob blob-3"></div>
+
+  <div class="badge"><span class="badge-dot"></span> Open Source · Python · MediaPipe</div>
+
+  <h1>Draw in<br/><span class="line2">Thin Air</span></h1>
+
+  <p class="hero-sub">
+    A real-time AI canvas controlled entirely by your hand gestures —
+    no mouse, no stylus, no touch. Just your webcam and your fingers.
+  </p>
+
+  <div class="cta-group">
+    <a href="canvas.html" class="btn-primary">
+      🎨 Launch Canvas
+    </a>
+    <a href="https://github.com/YOUR_USERNAME/ai-air-canvas" target="_blank" class="btn-secondary">
+      ⭐ Star on GitHub
+    </a>
+  </div>
+
+  <!-- Animated demo preview -->
+  <div class="demo-wrap">
+    <div class="demo-frame">
+      <div class="demo-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+      </div>
+      <div class="demo-canvas">
+        <svg viewBox="0 0 780 340" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Color palette bar -->
+          <rect width="780" height="50" fill="#13131a"/>
+          <rect x="4" y="6" width="86" height="38" rx="4" fill="#DC3232"/>
+          <rect x="98" y="6" width="86" height="38" rx="4" fill="#FF8C1E"/>
+          <rect x="192" y="6" width="86" height="38" rx="4" fill="#DCE01E"/>
+          <rect x="286" y="6" width="86" height="38" rx="4" fill="#28C828"/>
+          <rect x="380" y="6" width="86" height="38" rx="4" fill="#28C8C8"/>
+          <rect x="474" y="6" width="86" height="38" rx="4" fill="#284EDC"/>
+          <rect x="568" y="6" width="86" height="38" rx="4" fill="#B43CB4"/>
+          <rect x="662" y="6" width="86" height="38" rx="4" fill="#F0F0F0"/>
+          <!-- Drawings -->
+          <!-- Circle -->
+          <circle cx="150" cy="200" r="70" stroke="#DC3232" stroke-width="5" fill="none" stroke-dasharray="440" stroke-dashoffset="0">
+            <animate attributeName="stroke-dashoffset" from="440" to="0" dur="2s" begin="0.5s" fill="freeze"/>
+          </circle>
+          <!-- Triangle -->
+          <polyline points="350,130 280,270 420,270 350,130" stroke="#28C828" stroke-width="5" fill="none" stroke-linejoin="round" stroke-dasharray="500" stroke-dashoffset="500">
+            <animate attributeName="stroke-dashoffset" from="500" to="0" dur="2s" begin="2s" fill="freeze"/>
+          </polyline>
+          <!-- Star -->
+          <polyline points="600,130 615,175 660,175 625,200 638,245 600,220 562,245 575,200 540,175 585,175 600,130" stroke="#FFD700" stroke-width="5" fill="none" stroke-linejoin="round" stroke-dasharray="700" stroke-dashoffset="700">
+            <animate attributeName="stroke-dashoffset" from="700" to="0" dur="2.5s" begin="3.5s" fill="freeze"/>
+          </polyline>
+          <!-- Labels -->
+          <text x="150" y="300" text-anchor="middle" fill="#00e5cc" font-size="13" font-family="monospace" opacity="0">
+            Circle ⭕
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="2.5s" fill="freeze"/>
+          </text>
+          <text x="350" y="300" text-anchor="middle" fill="#00e5cc" font-size="13" font-family="monospace" opacity="0">
+            Triangle △
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="4s" fill="freeze"/>
+          </text>
+          <text x="600" y="300" text-anchor="middle" fill="#00e5cc" font-size="13" font-family="monospace" opacity="0">
+            Star ⭐
+            <animate attributeName="opacity" from="0" to="1" dur="0.3s" begin="6s" fill="freeze"/>
+          </text>
+          <!-- Finger cursor -->
+          <circle cx="150" cy="200" r="12" fill="#7c6fff" opacity="0.9">
+            <animateMotion dur="2s" begin="0.5s" fill="freeze"
+              path="M0,0 A70,70 0 1,1 -1,0"/>
+          </circle>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container text-center">
+    <div class="section-label">What it does</div>
+    <h2 class="section-title">Built with real AI</h2>
+    <p class="section-sub" style="margin:0 auto">
+      Every pixel is drawn by your finger. Every shape is recognized by geometry AI. Zero plugins, zero installs for the web version.
+    </p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">✋</span>
+        <div class="feature-title">Hand Tracking</div>
+        <div class="feature-desc">MediaPipe detects 21 hand landmarks in real-time at 30fps with sub-20ms latency.</div>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">✏️</span>
+        <div class="feature-title">Air Drawing</div>
+        <div class="feature-desc">Exponential smoothing on fingertip position eliminates jitter for clean, fluid strokes.</div>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🔵</span>
+        <div class="feature-title">Shape AI</div>
+        <div class="feature-desc">Contour circularity, vertex count and aspect ratio classify circles, stars, arrows and more.</div>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🎨</span>
+        <div class="feature-title">Color Picker</div>
+        <div class="feature-desc">8-color palette at the top of the canvas. Move your finger into the bar to switch instantly.</div>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">✌️</span>
+        <div class="feature-title">Erase Gesture</div>
+        <div class="feature-desc">Peace sign (index + middle finger) activates a wide eraser. Natural and intuitive.</div>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⚡</span>
+        <div class="feature-title">Gesture Debounce</div>
+        <div class="feature-desc">Gestures must be held for 4 frames before triggering — prevents accidental switches.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Gestures -->
+<section id="gestures" class="gestures-section">
+  <div class="gestures-inner">
+    <div class="section-label">How to use</div>
+    <h2 class="section-title">Gesture Guide</h2>
+    <p class="section-sub">Everything is controlled by your hand — no keyboard needed (except S to save).</p>
+    <div class="gesture-list">
+      <div class="gesture-row">
+        <div class="gesture-emoji">☝️</div>
+        <div class="gesture-name">Index Finger</div>
+        <div class="gesture-desc">Hold up only your index finger and move your hand to draw on the canvas.</div>
+        <div class="gesture-tag">Draw</div>
+      </div>
+      <div class="gesture-row">
+        <div class="gesture-emoji">✌️</div>
+        <div class="gesture-name">Peace Sign</div>
+        <div class="gesture-desc">Index + middle fingers up. Move to erase parts of your drawing.</div>
+        <div class="gesture-tag">Erase</div>
+      </div>
+      <div class="gesture-row">
+        <div class="gesture-emoji">🖐️</div>
+        <div class="gesture-name">Open Palm</div>
+        <div class="gesture-desc">Four or more fingers open — instantly wipes the entire canvas clean.</div>
+        <div class="gesture-tag">Clear</div>
+      </div>
+      <div class="gesture-row">
+        <div class="gesture-emoji">☝️</div>
+        <div class="gesture-name">Top Bar</div>
+        <div class="gesture-desc">Point your index finger into the colored bar at the top to switch colors.</div>
+        <div class="gesture-tag">Color</div>
+      </div>
+      <div class="gesture-row">
+        <div class="gesture-emoji">⬆️</div>
+        <div class="gesture-name">Lift Finger</div>
+        <div class="gesture-desc">Stop drawing mid-stroke — the AI analyses your stroke and labels the shape.</div>
+        <div class="gesture-tag">Shape AI</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Stack -->
+<section id="stack">
+  <div class="container text-center">
+    <div class="section-label">Tech Stack</div>
+    <h2 class="section-title">Built with</h2>
+    <p class="section-sub" style="margin:0 auto">Python-first project. Web version uses the JS port of the same libraries.</p>
+    <div class="stack-grid">
+      <div class="stack-card">
+        <div class="stack-name">MediaPipe</div>
+        <div class="stack-role">Hand landmark detection</div>
+        <div class="stack-pill">v0.10.33</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-name">OpenCV</div>
+        <div class="stack-role">Drawing engine & camera</div>
+        <div class="stack-pill">v4.8+</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-name">NumPy</div>
+        <div class="stack-role">Canvas array operations</div>
+        <div class="stack-pill">v1.24+</div>
+      </div>
+      <div class="stack-card">
+        <div class="stack-name">Contour AI</div>
+        <div class="stack-role">Shape recognition engine</div>
+        <div class="stack-pill">Custom</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Ready to draw<br/>in the air?</h2>
+  <p>No install needed for the web version. Just allow webcam access and go.</p>
+  <div class="cta-group" style="justify-content:center">
+    <a href="canvas.html" class="btn-primary">🎨 Launch Web Canvas</a>
+    <a href="https://github.com/YOUR_USERNAME/ai-air-canvas" target="_blank" class="btn-secondary">View Source</a>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div>AI Air Canvas — Built with MediaPipe + OpenCV</div>
+  <div>
+    <a href="https://github.com/YOUR_USERNAME/ai-air-canvas" target="_blank">GitHub</a>
+  </div>
+</footer>
+
+</body>
+</html>
