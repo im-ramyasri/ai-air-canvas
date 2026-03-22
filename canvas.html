@@ -151,7 +151,7 @@ body{
   animation:fadeIn 0.5s 0.6s ease both;
   transition:opacity 0.3s,transform 0.3s;
 }
-.guide-panel.hidden{opacity:0;pointer-events:none;transform:translateX(10px);}
+.guide-panel.hidden{opacity:0;pointer-events:none;transform:translateX(10px);display:none;}
 .guide-title{
   font-size:0.65rem;letter-spacing:0.12em;text-transform:uppercase;
   color:var(--muted);margin-bottom:0.6rem;
@@ -537,7 +537,8 @@ document.getElementById('themeBtn').onclick = () => {
 // ── Guide Toggle ──────────────────────────────────────────────────────────
 function toggleGuide() {
   guideVisible = !guideVisible;
-  document.getElementById('guidePanel').classList.toggle('hidden', !guideVisible);
+  const panel = document.getElementById('guidePanel');
+  panel.style.display = guideVisible ? 'block' : 'none';
 }
 document.getElementById('guideToggleBtn').onclick = toggleGuide;
 
